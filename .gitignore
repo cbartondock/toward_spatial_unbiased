@@ -2,7 +2,9 @@ __pycache__
 projector_images
 sample
 prepared
-inverse
+!inverse/
+inverse/*
+!inverse/l2norms.py
 checkpoint
 gendata
 datasets
