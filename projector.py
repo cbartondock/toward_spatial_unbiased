@@ -173,7 +173,8 @@ if __name__ == "__main__":
     for k in range(args.pics):
         #dh = int(math.sin(2 * math.pi * (k / args.pics)) * radius)
         dh = 0
-        dw = int(math.cos(2 * math.pi * (k / args.pics)) * radius)
+        dw = 0
+        #dw = int(math.cos(2 * math.pi * (k / args.pics)) * radius)
         imgs_ = torch.roll(imgs, dh, 2)
         imgs_ = torch.roll(imgs, dw, 3)
 
@@ -244,14 +245,16 @@ if __name__ == "__main__":
 
         utils.save_image(
             imgs_,
-            f"inverse/{args.name}/target_{str(k).zfill(4)}.png",
+            f"inverse/{args.name}/target_{args.files[0].split('/')[-1]}",
+            #f"inverse/{args.name}/target_{str(k).zfill(4)}.png",
             nrow=1,
             normalize=True,
             range=(-1, 1),
         )
         utils.save_image(
             img_gen,
-            f"inverse/{args.name}/sample_{str(k).zfill(4)}.png",
+            f"inverse/{args.name}/sample_{args.files[0].split('/')[-1]}",
+            #f"inverse/{args.name}/sample_{str(k).zfill(4)}.png",
             nrow=1,
             normalize=True,
             range=(-1, 1),
