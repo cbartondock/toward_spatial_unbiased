@@ -8,3 +8,4 @@ inverse/*
 checkpoint
 gendata
 datasets
+generate/*

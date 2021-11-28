@@ -12,11 +12,16 @@ def generate(args, g_ema, device, mean_latent):
     with torch.no_grad():
         g_ema.eval()
         sample_z = torch.randn(args.sample, args.latent, device=device)
+        rot = torch.tensor([[math.cos(math.pi/2), math.sin(math.pi/2)], [-math.sin(math.pi/2),math.cos(math.pi/2)]])
+        shear = torch.tensor([[1.,.2],[0.,1.]]);
+        eye = torch.eye(2)
+        flip = torch.tensor([[-1.,0.],[0.,1.]]);
+        periodic = torch.tensor([[3.,0.],[0.,1.]])
         for i in tqdm(range(args.pics)):
             dh = math.sin(2 * math.pi * (i / args.pics)) * radius
             dw = math.cos(2 * math.pi * (i / args.pics)) * radius
             sample, _ = g_ema(
-                [sample_z], truncation=args.truncation, truncation_latent=mean_latent, shift_h=dh, shift_w=dw)
+                [sample_z], truncation=args.truncation, truncation_latent=mean_latent, shift_h=dh, shift_w=dw,pe_transform=periodic)
 
             for j in range(args.sample):
                 utils.save_image(
