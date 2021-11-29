@@ -125,7 +125,7 @@ if __name__ == "__main__":
         default=0.75,
         help="duration of the noise level decay",
     )
-    parser.add_argument("--step", type=int, default=20, help="optimize iterations")
+    parser.add_argument("--step", type=int, default=1000, help="optimize iterations")
     parser.add_argument(
         "--noise_regularize",
         type=float,
@@ -263,7 +263,7 @@ if __name__ == "__main__":
 
             noise_normalize_(noises)
 
-            if (i + 1) % 10 == 0:
+            if (i + 1) % 100 == 0:
                 latent_path.append(latent_in.detach().clone())
 
             pbar.set_description(
