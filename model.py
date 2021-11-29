@@ -771,40 +771,35 @@ class PE2d(nn.Module):
         self.div_term = torch.exp(torch.arange(0., self.d_model, 2) * -(math.log(10000.0) / self.d_model)) / scale
         self.pos_h = torch.arange(0., height).unsqueeze(1)
         self.pos_w = torch.arange(0., width).unsqueeze(1)
-        self.height = height
-        self.width = width
 
         self.gamma = nn.Parameter(torch.ones(1))
 
     def forward(self, x, shift_h=0, shift_w=0, pe_transform=None):
-        # continuous roll (version in paper)
-        #pos_h = torch.roll(self.pos_h, round(shift_h), 0) + (round(shift_h) - shift_h)
-        #pos_w = torch.roll(self.pos_w, round(shift_w), 0) + (round(shift_w) - shift_w)
-        # affine transformation + shift (all on torus)
-        pos_h,pos_w = self.pos_h,self.pos_w
-        height, width = pos_h.shape[0],pos_w.shape[0]
+        height, width = self.pos_h.shape[0], self.pos_w.shape[0]
+
+        # Index based positional encoding
         initial_pe = torch.zeros(2,height,width)
-        initial_pe[0,:,:]= pos_w.transpose(0,1).unsqueeze(1).repeat(1,height,1)
-        initial_pe[1,:,:]= pos_h.transpose(0,1).unsqueeze(2).repeat(1,1,width)
-        initial_pe=torch.tensordot(pe_transform,initial_pe,1)
-        # Translation will go here.
-        initial_pe = torch.remainder(initial_pe, width) # make this work for non-squares eventually
+        initial_pe[0,:,:]= self.pos_w.transpose(0,1).unsqueeze(1).repeat(1,height,1)
+        initial_pe[1,:,:]= self.pos_h.transpose(0,1).unsqueeze(2).repeat(1,1,width)
+
+        # Affine Transformation of the encoding torus
+        if pe_transform is not None:
+          initial_pe[0,:,:] -= int(width/2)
+          initial_pe[1,:,:] -= int(height/2)
+          initial_pe=torch.tensordot(pe_transform,initial_pe,1)
+          initial_pe[0,:,:] += int(width/2)
+          initial_pe[1,:,:] += int(height/2)
+        initial_pe[0,:,:] += shift_w
+        initial_pe[1,:,:] += shift_h
+        initial_pe[0,:,:] = torch.remainder(initial_pe[0], width)
+        initial_pe[1,:,:] = torch.remainder(initial_pe[1], height)
+
+        # Convert to quadtree encoding
         self.pe[0:self.d_model:2,:,:] = torch.sin(torch.reshape(torch.outer(torch.reshape(initial_pe[0],(1,height*width)).squeeze(),self.div_term),(height,width,self.half_d))).permute(2,0,1)
         self.pe[1:self.d_model:2,:,:] = torch.cos(torch.reshape(torch.outer(torch.reshape(initial_pe[0],(1,height*width)).squeeze(),self.div_term),(height,width,self.half_d))).permute(2,0,1)
         self.pe[self.d_model::2,:,:] = torch.sin(torch.reshape(torch.outer(torch.reshape(initial_pe[1],(1,height*width)).squeeze(),self.div_term),(height,width,self.half_d))).permute(2,0,1)
         self.pe[self.d_model+1::2,:,:] = torch.cos(torch.reshape(torch.outer(torch.reshape(initial_pe[1],(1,height*width)).squeeze(),self.div_term),(height,width,self.half_d))).permute(2,0,1)
 
-
-        #  if pe_transform is not None:
-        #    pos_w, pos_h = torch.mm(torch.stack((pos_h,pos_w),dim=2).squeeze(),pe_transform.t()).unsqueeze(2).unbind(1)
-        #  pos_h = torch.remainder( pos_h + shift_h * torch.ones(pos_h.shape), self.height)
-        #  pos_w = torch.remainder( pos_w + shift_w * torch.ones(pos_w.shape), self.width)
-        #  self.pe[0:self.d_model:2, :, :] = torch.sin(pos_w * self.div_term).transpose(0, 1).unsqueeze(1).repeat(1, pos_h.shape[0], 1)
-        #  self.pe[1:self.d_model:2, :, :] = torch.cos(pos_w * self.div_term).transpose(0, 1).unsqueeze(1).repeat(1, pos_h.shape[0], 1)
-        #
-        #  self.pe[self.d_model::2, :, :] = torch.sin(pos_h * self.div_term).transpose(0, 1).unsqueeze(2).repeat(1, 1, pos_w.shape[0])
-        #  self.pe[self.d_model + 1::2, :, :] = torch.cos(pos_h * self.div_term).transpose(0, 1).unsqueeze(2).repeat(1, 1, pos_w.shape[0])
-        #
         return x + self.gamma * self.pe.unsqueeze(0)
 
 class PE2dStart(nn.Module):
@@ -823,45 +818,31 @@ class PE2dStart(nn.Module):
         self.div_term = torch.exp(torch.arange(0., self.d_model, 2) * -(math.log(10000.0) / self.d_model)) / scale
         self.pos_h = torch.arange(0., height).unsqueeze(1)
         self.pos_w = torch.arange(0., width).unsqueeze(1)
-        self.height=height
-        self.width=width
 
     def forward(self, x, shift_h=0, shift_w=0, pe_transform=None):
-        # TODO
-        pos_h, pos_w = self.pos_h, self.pos_w
-        height, width = pos_h.shape[0],pos_w.shape[0]
+        height, width = self.pos_h.shape[0], self.pos_w.shape[0]
+
+        # Index based positional encoding
         initial_pe = torch.zeros(2,height,width)
-        initial_pe[0,:,:]= pos_w.transpose(0,1).unsqueeze(1).repeat(1,height,1)
-        initial_pe[1,:,:]= pos_h.transpose(0,1).unsqueeze(2).repeat(1,1,width)
-        initial_pe=torch.tensordot(pe_transform,initial_pe,1)
-        # Translation will go here.
-        initial_pe = torch.remainder(initial_pe, width) # make this work for non-squares eventually
+        initial_pe[0,:,:] = self.pos_w.transpose(0,1).unsqueeze(1).repeat(1,height,1)
+        initial_pe[1,:,:] = self.pos_h.transpose(0,1).unsqueeze(2).repeat(1,1,width)
+
+        # Affine Transformation of the encoding torus
+        if pe_transform is not None:
+          initial_pe[0,:,:] -= int(width/2)
+          initial_pe[1,:,:] -= int(height/2)
+          initial_pe=torch.tensordot(pe_transform,initial_pe,1)
+          initial_pe[0,:,:] += int(width/2)
+          initial_pe[1,:,:] += int(height/2)
+        initial_pe[0,:,:] += shift_w
+        initial_pe[1,:,:] += shift_h
+        initial_pe[0,:,:] = torch.remainder(initial_pe[0], width)
+        initial_pe[1,:,:] = torch.remainder(initial_pe[1], height)
+
+        # Convert to quadtree encoding
         self.pe[0:self.d_model:2,:,:] = torch.sin(torch.reshape(torch.outer(torch.reshape(initial_pe[0],(1,height*width)).squeeze(),self.div_term),(height,width,self.half_d))).permute(2,0,1)
         self.pe[1:self.d_model:2,:,:] = torch.cos(torch.reshape(torch.outer(torch.reshape(initial_pe[0],(1,height*width)).squeeze(),self.div_term),(height,width,self.half_d))).permute(2,0,1)
         self.pe[self.d_model::2,:,:] = torch.sin(torch.reshape(torch.outer(torch.reshape(initial_pe[1],(1,height*width)).squeeze(),self.div_term),(height,width,self.half_d))).permute(2,0,1)
         self.pe[self.d_model+1::2,:,:] = torch.cos(torch.reshape(torch.outer(torch.reshape(initial_pe[1],(1,height*width)).squeeze(),self.div_term),(height,width,self.half_d))).permute(2,0,1)
-        #  if pe_transform is not None:  # from alias-free gan, not implemented yet
-        #    pos_w, pos_h = torch.mm(torch.stack((self.pos_h,self.pos_w),dim=2).squeeze(),pe_transform.t()).unsqueeze(2).unbind(1)
-        #  pos_h = torch.remainder(pos_h + shift_h*torch.ones(pos_h.shape), self.height)
-        #  pos_w = torch.remainder(pos_w + shift_w*torch.ones(pos_w.shape), self.width)
-        #
-            #  norm = torch.norm(transform[:, :2], dim=-1, keepdim=True)
-            #  affine = transform / (norm + 1e-8)
-            #
-            #  r_c, r_s, t_x, t_y = affine.view(
-            #      affine.shape[0], 1, 1, 1, affine.shape[-1]
-            #  ).unbind(-1)
-            #
-            #  pos_h = -r_s * self.pos_w + r_c * self.pos_h - t_y
-        #      pos_w = r_c * self.pos_w + r_s * self.pos_h - t_x
-        #  else:  our method
-        #      continuous roll
-        #      pos_h = torch.roll(self.pos_h, round(shift_h), 0) + (round(shift_h) - shift_h)
-        #      pos_w = torch.roll(self.pos_w, round(shift_w), 0) + (round(shift_w) - shift_w)
-        #
-        #  self.pe[0:self.d_model:2, :, :] = torch.sin(pos_w * self.div_term).transpose(0, 1).unsqueeze(1).repeat(1, pos_h.shape[0], 1)
-        #  self.pe[1:self.d_model:2, :, :] = torch.cos(pos_w * self.div_term).transpose(0, 1).unsqueeze(1).repeat(1, pos_h.shape[0], 1)
-        #
-        #  self.pe[self.d_model::2, :, :] = torch.sin(pos_h * self.div_term).transpose(0, 1).unsqueeze(2).repeat(1, 1, pos_w.shape[0])
-        #  self.pe[self.d_model + 1::2, :, :] = torch.cos(pos_h * self.div_term).transpose(0, 1).unsqueeze(2).repeat(1, 1, pos_w.shape[0])
+
         return self.pe.unsqueeze(0).repeat(x.shape[0], 1, 1, 1)
