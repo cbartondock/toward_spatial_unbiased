@@ -12,7 +12,7 @@ files = [f for f in files if not os.path.isdir(f)]
 chunk = lambda l, n: [l[i:i+n] for i in range(0,len(l),n)]
 for batch in chunk(files, args.batchsize):
   joinedfiles = ' '.join(batch)
-  os.system('python projector.py --name' + ' ' + args.exp_name + ' ' + '--w_plus --pics 20 --ckpt 500000.pt --position mspe' + ' ' + joinedfiles)
+  os.system('python projector.py --name' + ' ' + args.exp_name + ' ' + '--w_plus --pics 3 --ckpt 500000.pt --position mspe' + ' ' + joinedfiles)
 
 # For UMIACS
 #os.system(' '.join('srun python projector.py --name downloaded --w_plus --ckpt 750000.pt --position mspe',files))
