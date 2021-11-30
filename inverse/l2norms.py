@@ -11,19 +11,21 @@ parser.add_argument('indir',type=path.Path, help="Directory containing sample an
 parser.add_argument('--name', default="dist",help="Name of output (without extension)")
 args = parser.parse_args()
 
-sources = [os.path.join(args.indir,x) for x in os.listdir(args.indir) if x.split("_")[0]=="sample"]
+samples = [os.path.join(args.indir,x) for x in os.listdir(args.indir) if x.split("_")[0]=="sample"]
 targets = [os.path.join(args.indir,x) for x in os.listdir(args.indir) if x.split("_")[0]=="target"]
-if len(sources) != len(targets):
-  print("There should be the same number of sources as there are targets")
-  print(f"But there are {len(sources)} sources and {len(targets)} targets")
+samples.sort()
+targets.sort()
+if len(samples) != len(targets):
+  print("There should be the same number of samples as there are targets")
+  print(f"But there are {len(samples)} samples and {len(targets)} targets")
   exit()
 
 diffs, fracs = [], []
-for i in range(0,len(sources)):
-  source= np.array(image.imread(sources[i]))
+for i in range(0,len(samples)):
+  sample= np.array(image.imread(samples[i]))
   target= np.array(image.imread(targets[i]))
-  diffnorm = np.linalg.norm(np.ndarray.flatten(source-target),2)
-  frac = diffnorm / np.linalg.norm(np.ndarray.flatten(source),2)
+  diffnorm = np.linalg.norm(np.ndarray.flatten(sample-target),2)
+  frac = diffnorm / np.linalg.norm(np.ndarray.flatten(target),2)
   diffs.append(diffnorm)
   fracs.append(frac)
 

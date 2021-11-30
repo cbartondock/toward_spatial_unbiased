@@ -3,7 +3,7 @@ sample
 prepared
 !inverse/
 inverse/*
-!inverse/l2norms.py
+!inverse/*.py
 checkpoint
 gendata
 datasets
